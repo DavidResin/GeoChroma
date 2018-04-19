@@ -18,7 +18,7 @@ def hsv_fill(x, y, cmap=plt.get_cmap("hsv")):
 		color = cmap(n / N)
 		rect(x, 0, dx, y, color)
 
-test = cv2.imread("satellite.jpg")
+test = cv2.imread("../inputs/satellite.jpg")
 hsv = cv2.cvtColor(test, cv2.COLOR_BGR2HSV)
 
 chans = cv2.split(hsv)
