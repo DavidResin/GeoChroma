@@ -2,14 +2,15 @@ import glob, os, cv2, math, time
 import numpy as np
 import colorsys as cs
 
-
+# Processes all images in the given folder and writes the best images, best colors, coordinates for the best images and counts of images in respective files, the latter 2 to be used in the dataviz
 def tile(n_tiles=8, input_dir='.', output_dir='.', size=64, stretch=False):
 	canvas = np.zeros((size * n_tiles, size * n_tiles, 3), dtype="uint8")
 	means = np.zeros((size * n_tiles, size * n_tiles, 3), dtype="uint8")
 	scores = np.zeros((n_tiles, n_tiles))
+	counts = np.zeros((n_tiles, n_tiles))
+	data = []
 
 	os.chdir(input_dir)
-	i = 0
 
 	start = time.time()
 	
@@ -41,26 +42,19 @@ def tile(n_tiles=8, input_dir='.', output_dir='.', size=64, stretch=False):
 
 				canvas[xPos:xPos + size, yPos:yPos + size, :] = img_proc
 				means[xPos:xPos + size, yPos:yPos + size, :] = color
+				counts[x, y] = counts[x, y] + 1
 
-				#cleanly convert color for image location
+				lat, lon, _ = tuple(fname.split('_'))
 
-				#display stacks of images to check validity of scoring system
+				data.append(['\'' + str(x) + '_' + str(y) + '\'', str(lat), str(lon)])
 
-				#smaller tiles, more images
+	os.chdir('../../' + output_dir)
 
-				#timestamps + parameters in file name
+	for i in range(n_tiles):
+		for j in range(n_tiles):
+			temp = canvas[i * size:(i+1) * size, j * size:(j+1) * size]
+			cv2.imwrite('slices/slice_' + str(i) + '_' + str(j) + '.jpg', temp)
 
-				#database for image data
-
-				#calculate standard deviation?
-
-				#time taken per image
-
-				#adjust value on images!!!!
-
-				#show means
-
-	os.chdir('../' + output_dir)
 
 	end = time.time()
 	print("time : " + str(end - start))
@@ -70,6 +64,10 @@ def tile(n_tiles=8, input_dir='.', output_dir='.', size=64, stretch=False):
 	cv2.imwrite('tiles_' + '_'.join(str(i) for i in t) + '.jpg', canvas)
 	cv2.imwrite('means_' + '_'.join(str(i) for i in t) + '.jpg', means)
 
+	np.savetxt("temp.txt", counts.tolist(), header="values = [[", footer="]];", delimiter=", ", newline="],\n[", fmt="%s", comments="")
+	np.savetxt("coor.txt", [i for i in reversed(data)], header="values = [[", footer="]];", delimiter=", ", newline="],\n[", fmt="%s", comments="")
+
+# Function for processing a given image by path, returns the cut image with a score and an average
 def process_image(path, n_cuts=16):
 	try:
 		img_raw = cv2.imread(path)
@@ -83,41 +81,8 @@ def process_image(path, n_cuts=16):
 	img_crop = cv2.resize(img_proc[:short, :short], (128, 128))
 
 	global_avg = np.mean(img_crop, (0, 1))
-	'''	
-	indices, _ = zip(*np.ndenumerate(np.zeros((n_cuts, n_cuts))))
-	cuts = [math.floor(short * (i / n_cuts)) for i in range(n_cuts + 1)]
-
-	local_avgs = [[np.mean(img_proc[cuts[x]:cuts[x + 1], cuts[y]:cuts[y + 1], i]) for i in range(c)] for x, y in indices]
-
-	score = sum([np.linalg.norm(global_avg - avg) for avg in local_avgs]) / n_cuts**2
-	'''
+	
 	score = sum([np.std(img_crop[:, :, i]) for i in range(3)])
 	return img_proc, score, tuple(global_avg)
 
-
-def temp():
-	start = time.time()
-	path = 'inputs/37.jpg'
-	process_image(path)
-	end = time.time()
-	print("tiles : " + str(end - start))
-
-
-	start = time.time()
-
-	img_proc = cv2.imread(path) 
-
-	h, w, c = img_proc.shape
-	short = min(h, w)
-	img_crop = img_proc[:short, :short]
-
-	global_avg = np.mean(img_crop, (0, 1))
-	score = np.std(img_crop)
-
-	end = time.time()
-
-	print("std : " + str(end - start))
-
-
-
-tile(n_tiles=32, input_dir="inputs", output_dir="outputs", size=32)
+tile(n_tiles=32, input_dir="maps/small", output_dir="outputs", size=32)
